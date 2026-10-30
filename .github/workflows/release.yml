@@ -113,6 +113,11 @@ jobs:
         working-directory: ${{ runner.temp }}/spaceapp-public-export
         run: npm ci
 
+      - name: Rebuild patched Temporal in the release candidate
+        uses: ./.github/actions/temporal-native
+        with:
+          working-directory: ${{ runner.temp }}/spaceapp-public-export
+
       - name: Audit candidate dependencies
         working-directory: ${{ runner.temp }}/spaceapp-public-export
         run: npm audit --audit-level=high

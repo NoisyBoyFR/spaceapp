@@ -218,7 +218,7 @@ test("release is manual-only on main and publishes only approved sanitized artif
 });
 
 test("workflow actions use full commit SHA pins with version comments", async () => {
-  for (const name of ["ci.yml", "platform-matrix.yml", "containers.yml", "security.yml", "release.yml"]) {
+  for (const name of ["ci.yml", "platform-matrix.yml", "containers.yml", "security.yml", "release.yml", "temporal-workflow-tests.yml"]) {
     const content = await workflow(name);
     assert.doesNotMatch(content, /pull_request_target:/);
     for (const reference of content.matchAll(/uses:\s+([^@\s]+)@([0-9a-f]{40})(?:\s+#\s+([^\s]+))?/g)) {
@@ -228,6 +228,45 @@ test("workflow actions use full commit SHA pins with version comments", async ()
     }
     const usesCount = [...content.matchAll(/uses:\s+/g)].length;
     const pinnedCount = [...content.matchAll(/uses:\s+[^@\s]+@[0-9a-f]{40}\s+#\s+v?\d+\.\d+\.\d+/g)].length;
-    assert.equal(pinnedCount, usesCount, `${name} must pin every action by full commit SHA`);
+    const localActions = [...content.matchAll(/uses:\s+(\.\/[^\s]+)/g)];
+    for (const [, action] of localActions) {
+      assert.equal(action, "./.github/actions/temporal-native", `${name} may use only the reviewed local composite`);
+    }
+    assert.equal(pinnedCount + localActions.length, usesCount, `${name} must pin every remote action by full commit SHA`);
+  }
+
+  const composite = await readFile(join(root, ".github", "actions", "temporal-native", "action.yml"), "utf8");
+  const usesCount = [...composite.matchAll(/uses:\s+/g)].length;
+  const pinnedCount = [...composite.matchAll(/uses:\s+[^@\s]+@[0-9a-f]{40}\s+#\s+v?\d+\.\d+\.\d+/g)].length;
+  assert.equal(pinnedCount, usesCount, "local composite must pin every nested action by full commit SHA and version");
+  assert.equal(usesCount, 3, "native setup pins Rust, Protobuf, and the compilation cache");
+});
+
+test("native compilation and verification precede tests in each installed source candidate", async () => {
+  const composite = (await readFile(join(root, ".github", "actions", "temporal-native", "action.yml"), "utf8")).replace(/\r\n/g, "\n");
+  assert.match(composite, /default: \./);
+  assert.match(composite, /rust-toolchain@[0-9a-f]{40} # 1\.94\.0/);
+  assert.match(composite, /version: "23\.4"/);
+  assert.match(composite, /scripts\/fixtures\/temporal-core-bridge-1\.25\.0\.Cargo\.lock/);
+  assert.match(composite, /key: temporal-native-v1-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-rust1\.94\.0-\$\{\{ steps\.inputs\.outputs\.digest \}\}/);
+  assert.equal([...composite.matchAll(/working-directory: \$\{\{ inputs\.working-directory \}\}/g)].length, 3);
+  assert.match(composite, /node scripts\/build-temporal-native\.mjs --target-dir "\$RUNNER_TEMP\/temporal-native-target"/);
+  assert.match(composite, /node scripts\/build-temporal-native\.mjs --verify/);
+  assert.doesNotMatch(composite, /continue-on-error|cache-hit|restore-keys:/);
+
+  for (const name of ["ci.yml", "release.yml"]) {
+    const content = await workflow(name);
+    assert.match(content, /name: Install candidate dependencies[\s\S]*run: npm ci[\s\S]*uses: \.\/\.github\/actions\/temporal-native\n\s+with:\n\s+working-directory: \$\{\{ runner\.temp \}\}\/spaceapp-public-export[\s\S]*run: npm run test:public/);
+  }
+  const temporal = await workflow("temporal-workflow-tests.yml");
+  assert.match(temporal, /timeout-minutes: 60/);
+  assert.match(temporal, /run: npm ci[\s\S]*uses: \.\/\.github\/actions\/temporal-native[\s\S]*run: npm run check/);
+  assert.match(temporal, /timeout-minutes: 3\n\s+run: >-\n\s+npm test -w @space\/worker/);
+  const security = await workflow("security.yml");
+  const source = security.match(/\n  source:\n([\s\S]*?)\n  dependency-review:/)?.[1] || "";
+  const codeql = security.match(/\n  codeql:\n([\s\S]*?)\n  image:/)?.[1] || "";
+  for (const job of [source, codeql]) {
+    assert.match(job, /timeout-minutes: 60/);
+    assert.match(job, /run: npm ci[\s\S]*uses: \.\/\.github\/actions\/temporal-native[\s\S]*run: npm run (?:test:public|build)/);
   }
 });

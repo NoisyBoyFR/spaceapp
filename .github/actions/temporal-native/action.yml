@@ -1,0 +1,69 @@
+name: Rebuild patched Temporal native bridge
+description: Compile and verify the active Temporal addon with the reviewed Rustls lock.
+
+inputs:
+  working-directory:
+    description: Workspace containing the installed worker SDK and reviewed build helper.
+    required: false
+    default: .
+
+runs:
+  using: composite
+  steps:
+    - name: Install the pinned Rust compiler
+      uses: dtolnay/rust-toolchain@dc08e2af391d489dff6d14cf743e574f7d1229c5 # 1.94.0
+
+    - name: Install the pinned Protobuf compiler
+      uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+      with:
+        version: "23.4"
+        repo-token: ${{ github.token }}
+
+    - name: Install native Linux compiler prerequisites
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev
+
+    - name: Fingerprint the reviewed native build inputs
+      id: inputs
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        node --input-type=module <<'NODE'
+        import { appendFileSync, readFileSync } from "node:fs";
+        import { createHash } from "node:crypto";
+        const hash = createHash("sha256");
+        for (const file of [
+          "scripts/build-temporal-native.mjs",
+          "scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock",
+        ]) {
+          hash.update(file).update("\0").update(readFileSync(file)).update("\0");
+        }
+        appendFileSync(process.env.GITHUB_OUTPUT, "digest=" + hash.digest("hex") + "\n");
+        NODE
+
+    - name: Restore the matching Rust source and compilation cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ${{ runner.temp }}/temporal-native-target
+        key: temporal-native-v1-${{ runner.os }}-${{ runner.arch }}-rust1.94.0-${{ steps.inputs.outputs.digest }}
+
+    - name: Compile the patched Temporal native bridge
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        CARGO_BUILD_JOBS: "2"
+        CARGO_INCREMENTAL: "0"
+        CARGO_TERM_COLOR: never
+      run: node scripts/build-temporal-native.mjs --target-dir "$RUNNER_TEMP/temporal-native-target"
+
+    - name: Verify the rebuilt native artifact
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: node scripts/build-temporal-native.mjs --verify
+

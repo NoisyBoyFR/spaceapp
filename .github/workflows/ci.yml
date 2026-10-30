@@ -54,6 +54,11 @@ jobs:
         working-directory: ${{ runner.temp }}/spaceapp-public-export
         run: npm ci
 
+      - name: Rebuild patched Temporal in the sanitized candidate
+        uses: ./.github/actions/temporal-native
+        with:
+          working-directory: ${{ runner.temp }}/spaceapp-public-export
+
       - name: Install ripgrep (the file search tests run the real rg)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
 

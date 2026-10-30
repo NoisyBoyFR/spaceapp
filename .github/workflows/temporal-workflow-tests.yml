@@ -19,7 +19,7 @@ jobs:
   temporal-workflows:
     name: Real workflow sandbox and replay
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,6 +34,9 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
         run: npm ci
+
+      - name: Rebuild patched Temporal before sandbox and replay tests
+        uses: ./.github/actions/temporal-native
 
       - name: Build prerequisites and typecheck
         run: npm run check
