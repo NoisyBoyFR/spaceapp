@@ -12,6 +12,12 @@ The monorepo requires Node **>=22.12 <23**, as declared in the root
 Windows contributors can use WSL. Building `node-pty` may require Python 3,
 Make and a C++ compiler if a compatible prebuilt binary is unavailable.
 
+The Temporal worker also requires Rust **1.94.0** (installed with rustup),
+Protobuf compiler **23.4**, and the platform's C/C++ build tools. The official
+SDK 1.25.0 precompiled bridge contains an older Rustls; this repository rebuilds
+it from the reviewed Cargo lock with Rustls **0.23.46**. CI and Docker perform
+this build before running worker tests or producing application images.
+
 The `run-spaceapp` installer is a separate package with its own host Node
 requirement. Installing the application and developing this monorepo have
 different prerequisites; consult the selected installer's `engines` field.
@@ -20,6 +26,7 @@ From the repository root, install the locked dependencies:
 
 ```sh
 ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci
+npm run temporal:native:build
 ```
 
 Skipping the Electron download is suitable for core development. Desktop
@@ -90,7 +97,8 @@ for the pinned SDK, prerequisites and synthetic-history recording procedure.
 
 ## Checks before a commit
 
-After `npm ci`, these commands work in this order, also on a fresh clone:
+After `npm ci` and `npm run temporal:native:build`, these commands work in this
+order, also on a fresh clone:
 
 ```sh
 npm run check

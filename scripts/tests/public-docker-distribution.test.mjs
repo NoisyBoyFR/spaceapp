@@ -12,7 +12,7 @@ test("public Dockerfile provides native multi-arch core, browser, and redistribu
   const nodeImage =
     "node:22.23.0-trixie-slim@sha256:cfd8f2a5bc50526aee08e88970979f92722828e7dcc6d8983607fb8bff4bdb82";
   const nodeStages = Array.from(
-    dockerfile.matchAll(/^FROM (\S+) AS (build|runtime-base)$/gm),
+    dockerfile.matchAll(/^FROM (\S+) AS (dependencies|runtime-base)$/gm),
     ([, image, stage]) => ({ image, stage })
   );
 
@@ -20,9 +20,14 @@ test("public Dockerfile provides native multi-arch core, browser, and redistribu
   assert.match(dockerfile, /FROM .* AS browser/);
   assert.match(dockerfile, /FROM .* AS cli/);
   assert.deepEqual(nodeStages, [
-    { image: nodeImage, stage: "build" },
+    { image: nodeImage, stage: "dependencies" },
     { image: nodeImage, stage: "runtime-base" }
   ]);
+  assert.match(dockerfile, /FROM dependencies AS build/);
+  assert.match(dockerfile, /FROM rust:1\.94\.0-slim-trixie@sha256:f7bf1c266d9e48c8d724733fd97ba60464c44b743eb4f46f935577d3242d81d0 AS rust-build-tools/);
+  assert.match(normalizedDockerfile, /node scripts\/build-temporal-native\.mjs --target-dir \/tmp\/temporal-native-target/);
+  assert.match(normalizedDockerfile, /npm prune --omit=dev\s+&& node scripts\/build-temporal-native\.mjs --verify/);
+  assert.match(normalizedDockerfile, /RUN node scripts\/build-temporal-native\.mjs --verify\s+&& chmod 0755/);
   assert.equal(
     normalizedDockerfile.match(/apt-get install -y --no-install-recommends[^&]*liblzma5/g)?.length,
     3,

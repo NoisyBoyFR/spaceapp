@@ -1,20 +1,58 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22.23.0-trixie-slim@sha256:cfd8f2a5bc50526aee08e88970979f92722828e7dcc6d8983607fb8bff4bdb82 AS build
+FROM rust:1.94.0-slim-trixie@sha256:f7bf1c266d9e48c8d724733fd97ba60464c44b743eb4f46f935577d3242d81d0 AS rust-build-tools
+
+FROM node:22.23.0-trixie-slim@sha256:cfd8f2a5bc50526aee08e88970979f92722828e7dcc6d8983607fb8bff4bdb82 AS dependencies
+ARG TARGETARCH
+ENV CARGO_HOME=/usr/local/cargo \
+    RUSTUP_HOME=/usr/local/rustup \
+    RUSTUP_TOOLCHAIN=1.94.0 \
+    CARGO_BUILD_JOBS=2 \
+    CARGO_INCREMENTAL=0 \
+    PATH="/usr/local/cargo/bin:${PATH}"
+COPY --from=rust-build-tools /usr/local/cargo /usr/local/cargo
+COPY --from=rust-build-tools /usr/local/rustup /usr/local/rustup
 WORKDIR /app
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential liblzma5 python3 pkg-config \
+    && apt-get install -y --no-install-recommends build-essential liblzma5 python3 pkg-config libssl-dev cmake clang curl unzip ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+RUN case "$TARGETARCH" in \
+      amd64) protoc_arch=x86_64; protoc_sha=0502f286ac9ed860b629a7965a14527b1f2dd131e4283fa23c2d7f184672aa9a ;; \
+      arm64) protoc_arch=aarch_64; protoc_sha=1c7750b6e038305b5a7fc3d0cda1ebefdf106a4f30a787bf826ed2fc47c3967d ;; \
+      *) echo "Unsupported native architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac \
+    && curl --fail --location --retry 3 "https://github.com/protocolbuffers/protobuf/releases/download/v23.4/protoc-23.4-linux-${protoc_arch}.zip" -o /tmp/protoc.zip \
+    && echo "$protoc_sha  /tmp/protoc.zip" | sha256sum --check - \
+    && unzip -q /tmp/protoc.zip -d /usr/local \
+    && rm /tmp/protoc.zip
+# Cache the native security rebuild independently of ordinary application edits.
+COPY package.json package-lock.json ./
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/worker/package.json ./apps/worker/package.json
+COPY packages/browser-host/package.json ./packages/browser-host/package.json
+COPY packages/cli-host/package.json ./packages/cli-host/package.json
+COPY packages/codex-app-server/package.json ./packages/codex-app-server/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/gateway/package.json ./packages/gateway/package.json
+COPY packages/icons/package.json ./packages/icons/package.json
+COPY packages/memory-graph/package.json ./packages/memory-graph/package.json
+COPY packages/opencode-control/package.json ./packages/opencode-control/package.json
+COPY packages/run-spaceapp/package.json ./packages/run-spaceapp/package.json
+COPY packages/runtime/package.json ./packages/runtime/package.json
+COPY packages/streaming/package.json ./packages/streaming/package.json
+RUN npm ci --no-audit --no-fund
+COPY scripts/build-temporal-native.mjs ./scripts/build-temporal-native.mjs
+COPY scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock ./scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock
+RUN node scripts/build-temporal-native.mjs --target-dir /tmp/temporal-native-target \
+    && rm -rf /tmp/temporal-native-target
+
+FROM dependencies AS build
 COPY . .
-# The SDK ships prebuilds for every OS and architecture. Keep the active target
-# before copying production dependencies, while retaining sources and metadata.
-RUN npm ci --no-audit --no-fund \
-    && npm run build \
+RUN npm run build \
     && npm prune --omit=dev \
-    && temporal_root="$(node -p 'require("node:path").dirname(require("node:module").createRequire(require("node:path").resolve("apps/worker/package.json")).resolve("@temporalio/core-bridge"))')" \
-    && temporal_target="$(node -p 'require(require("node:path").join(process.argv[1], "common.js")).getPrebuiltTargetName()' "$temporal_root")" \
-    && find "$temporal_root/releases" -mindepth 1 -maxdepth 1 -type d ! -name "$temporal_target" -exec rm -rf {} + \
-    && node -e 'require(require(require("node:path").join(process.argv[1], "common.js")).getPrebuiltPath()); require("node:module").createRequire(require("node:path").resolve("apps/worker/package.json"))("@temporalio/core-bridge")' "$temporal_root" \
+    && node scripts/build-temporal-native.mjs --verify \
     && find node_modules -type f \( -name '*.js.map' -o -name '*.mjs.map' -o -name '*.cjs.map' -o -name '*.css.map' \) -delete
 
 FROM node:22.23.0-trixie-slim@sha256:cfd8f2a5bc50526aee08e88970979f92722828e7dcc6d8983607fb8bff4bdb82 AS runtime-base
@@ -70,8 +108,11 @@ COPY --from=build --chown=spaceapp:spaceapp /app/scripts/reset-owner-password.mj
 COPY --from=build --chown=spaceapp:spaceapp /app/scripts/rotate-owner-setup-token.mjs ./scripts/rotate-owner-setup-token.mjs
 COPY --from=build --chown=spaceapp:spaceapp /app/scripts/portable-backup.mjs ./scripts/portable-backup.mjs
 COPY --from=build --chown=spaceapp:spaceapp /app/scripts/portable-restore.mjs ./scripts/portable-restore.mjs
+COPY --from=build --chown=spaceapp:spaceapp /app/scripts/build-temporal-native.mjs ./scripts/build-temporal-native.mjs
+COPY --from=build --chown=spaceapp:spaceapp /app/scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock ./scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock
 COPY --chown=spaceapp:spaceapp deploy/docker ./deploy/docker
-RUN chmod 0755 deploy/docker/core-entrypoint.sh deploy/docker/browser-entrypoint.sh deploy/docker/cli-entrypoint.sh \
+RUN node scripts/build-temporal-native.mjs --verify \
+    && chmod 0755 deploy/docker/core-entrypoint.sh deploy/docker/browser-entrypoint.sh deploy/docker/cli-entrypoint.sh \
     && install -m 0755 deploy/docker/public-cli-wrapper.sh /usr/local/bin/spaceapp-cli-wrapper \
     && for name in codex claude gemini opencode qwen kimi grok deepseek autohand cursor copilot; do \
          ln -s /usr/local/bin/spaceapp-cli-wrapper "/usr/local/bin/${name}-vscode-parity"; \

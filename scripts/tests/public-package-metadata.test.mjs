@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import { buildTemporalNative } from "../build-temporal-native.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const unqualifiedNpxCommand = /(^|[^\w-])npx --yes run-spaceapp(?:$|[^\w@])/;
@@ -28,7 +29,8 @@ const publicTestModules = [
   "reset-owner-password.test.mjs",
   "rotate-owner-setup-token.test.mjs",
   "trivy-report-summary.test.mjs",
-  "verify-export-provenance.test.mjs"
+  "verify-export-provenance.test.mjs",
+  "temporal-native-build.test.mjs"
 ];
 
 async function packageFiles(directory) {
@@ -97,7 +99,7 @@ test("public test command uses a portable one-file suite that imports every publ
 
   assert.match(
     rootPackage.scripts["test:public"],
-    /^node --test scripts\/tests\/public-suite\.test\.mjs && /
+    /^npm run temporal:native:verify && node --test scripts\/tests\/public-suite\.test\.mjs && /
   );
   // Every internal API dependency is built in dependency order before the
   // public API tests; the API depends on @space/gateway since the gateway merge.
@@ -216,9 +218,7 @@ test("Temporal dependencies use SDK releases with patched transitive packages", 
   assert.deepEqual(crateVersions("rand"), ["0.10.1", "0.9.3"]);
   assert.deepEqual(crateVersions("tar"), ["0.4.46"]);
   assert.deepEqual(crateVersions("zip"), ["9.0.5"]);
-  // Upstream 1.25.0 still ships this vulnerable crate; the scoped, expiring
-  // exception below is justified by the application's unreachable code path.
-  assert.deepEqual(crateVersions("rustls"), ["0.23.36"]);
+  assert.deepEqual(crateVersions("rustls"), ["0.23.46"]);
   assert.deepEqual(crateVersions("quinn-proto"), [], "Reviewed SDK removes the vulnerable HTTP/3 implementation");
 });
 
@@ -235,57 +235,22 @@ test("MCP Node transport is forced to the reviewed Hono security release", async
   );
 });
 
-test("temporary vulnerability ignores are narrow, documented, and expiring", async () => {
+test("vulnerability scans contain no ignored findings or expiration deadlines", async () => {
   const ignoreFile = await readFile(join(root, ".trivyignore"), "utf8");
   const activeEntries = ignoreFile
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line && !line.startsWith("#"));
 
-  assert.deepEqual(activeEntries, [
-    "GHSA-4w2j-m93h-cj5j exp:2026-10-25",
-    "GHSA-2mjx-qc3c-rqvc exp:2026-11-10",
-    "GHSA-c8m5-c952-6cm4 exp:2026-11-06",
-    "CVE-2026-39244 exp:2026-10-25",
-    "CVE-2026-55388 exp:2026-10-25",
-    "CVE-2026-41907 exp:2026-10-25",
-    "CVE-2026-16732 exp:2026-10-25",
-    "CVE-2026-18504 exp:2026-10-25"
-  ]);
-  assert.match(ignoreFile, /unused Cargo\.lock entry/i);
-  assert.match(ignoreFile, /no dependency path/i);
-  assert.match(ignoreFile, /cursor-agent/i);
-  assert.match(ignoreFile, /trustProxy/i);
-  assert.match(ignoreFile, /without TLS/i);
-  assert.match(ignoreFile, /https:\/\/github\.com\/rustls\/rustls\/security\/advisories\/GHSA-c8m5-c952-6cm4/);
-  assert.match(ignoreFile, /ClientSessionStore/);
-  assert.match(ignoreFile, /Debug/);
-  assert.match(ignoreFile, /NOT patched/);
+  assert.deepEqual(activeEntries, []);
+  assert.doesNotMatch(ignoreFile, /exp:\s*\d{4}-\d{2}-\d{2}/);
 });
 
-test("the temporary rustls session-debug exception stays unreachable in the application", async () => {
-  for (const name of ["worker.ts", "memory-maintenance-worker.ts", "memory-mutation-worker.ts"]) {
-    const source = await readFile(join(root, "apps", "worker", "src", name), "utf8");
-    const connections = [...source.matchAll(/NativeConnection\.connect\(([^)]*)\)/g)]
-      .map(([, options]) => options.replace(/\s/g, ""));
-    assert.deepEqual(connections, ["{address}"], `${name}: reassess the exception before changing Temporal TLS options`);
-  }
-  const compose = await readFile(join(root, "packages", "run-spaceapp", "templates", "compose.yml"), "utf8");
-  assert.match(compose, /SPACE_TEMPORAL_ADDRESS: temporal:7233/);
-  const workerSource = await readFile(join(root, "apps", "worker", "src", "worker.ts"), "utf8");
-  assert.match(workerSource, /Runtime\.install\(\{ telemetryOptions: \{ metrics: \{ prometheus:/);
-  assert.doesNotMatch(workerSource, /telemetryOptions:[\s\S]*?otlp:/);
-
-  const workerRequire = createRequire(join(root, "apps", "worker", "package.json"));
-  const bridgeRoot = dirname(workerRequire.resolve("@temporalio/core-bridge/package.json"));
-  for (const path of [
-    ["sdk-core", "crates", "client", "src", "lib.rs"],
-    ["sdk-core", "crates", "common", "src", "telemetry", "otel.rs"]
-  ]) {
-    const source = await readFile(join(bridgeRoot, ...path), "utf8");
-    assert.doesNotMatch(source, /ClientSessionStore|Tls12ClientSessionValue|Tls13ClientSessionValue/,
-      "Reassess the exception if the reviewed SDK adds custom session storage or session-value logging");
-  }
+test("the loaded Temporal native library has verified patched Rustls build evidence", async () => {
+  const receipt = await buildTemporalNative({ verify: true });
+  assert.equal(receipt.sdkVersion, "1.25.0");
+  assert.equal(receipt.rustlsVersion, "0.23.46");
+  assert.equal(receipt.compiledRustls.version, "0.23.46");
 });
 
 test("public policy files are present and point security reports to a private channel", async () => {

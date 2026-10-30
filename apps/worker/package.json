@@ -6,6 +6,9 @@
   "main": "dist/worker.js",
   "types": "dist/worker.d.ts",
   "scripts": {
+    "prebuild": "node ../../scripts/build-temporal-native.mjs --verify",
+    "prestart": "node ../../scripts/build-temporal-native.mjs --verify",
+    "pretest": "node ../../scripts/build-temporal-native.mjs --verify",
     "dev": "npm run build && node dist/worker.js",
     "start": "node dist/worker.js",
     "build": "tsc -p tsconfig.json",

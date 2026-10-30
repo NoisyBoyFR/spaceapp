@@ -41,6 +41,8 @@
     "@napi-rs/canvas": "1.0.9"
   },
   "scripts": {
+    "temporal:native:build": "node scripts/build-temporal-native.mjs",
+    "temporal:native:verify": "node scripts/build-temporal-native.mjs --verify",
     "dev:api": "npm run dev -w @space/api",
     "dev:web": "npm run dev -w @space/web",
     "dev:worker": "npm run dev -w @space/worker",
@@ -50,7 +52,7 @@
     "check": "npm run test:architecture && npm run build -w @space/contracts && npm run build -w @space/icons && npm run build -w @space/streaming && npm run build -w @space/opencode-control && npm run build -w @space/memory-graph && npm run build -w @space/browser-host && npm run build -w @space/cli-host && npm run build -w @space/codex-app-server && npm run build -w @space/runtime && npm run build -w @space/db && npm run build -w @space/gateway && npm run check -w @space/api && npm run check -w @space/worker && npm run check -w @space/web",
     "test": "npm run test:public",
     "test:deploy": "node --test scripts/tests/composition-root-size.test.mjs scripts/tests/domain-boundaries.test.mjs",
-    "test:public": "node --test scripts/tests/public-suite.test.mjs && npm run build -w @space/contracts && npm run build -w @space/icons && npm run build -w @space/streaming && npm run build -w @space/opencode-control && npm run build -w @space/memory-graph && npm run build -w @space/browser-host && npm run build -w @space/cli-host && npm run build -w @space/codex-app-server && npm run build -w @space/runtime && npm run build -w @space/db && npm run build -w @space/gateway && npm test --workspaces --if-present",
+    "test:public": "npm run temporal:native:verify && node --test scripts/tests/public-suite.test.mjs && npm run build -w @space/contracts && npm run build -w @space/icons && npm run build -w @space/streaming && npm run build -w @space/opencode-control && npm run build -w @space/memory-graph && npm run build -w @space/browser-host && npm run build -w @space/cli-host && npm run build -w @space/codex-app-server && npm run build -w @space/runtime && npm run build -w @space/db && npm run build -w @space/gateway && npm test --workspaces --if-present",
     "hygiene:status": "node scripts/space-hygiene-check.mjs",
     "hygiene:preflight": "node scripts/space-hygiene-check.mjs --preflight",
     "build:demos": "node scripts/build-demo-projects.mjs",

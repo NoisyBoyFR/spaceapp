@@ -83,6 +83,9 @@ const publicScripts = new Set([
   // Maintained here; listed so the CI re-export of this repository keeps them.
   "scripts/public-test-exclusions.json",
   "scripts/verify-export-provenance.mjs",
+  "scripts/build-temporal-native.mjs",
+  "scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock",
+  "scripts/tests/temporal-native-build.test.mjs",
   "scripts/tests/verify-export-provenance.test.mjs",
   "scripts/publish-npm-candidate.mjs",
   "scripts/tests/publish-npm-candidate.test.mjs",
@@ -145,6 +148,9 @@ const publicRepositoryWorkspaces = new Set(["run-spaceapp"]);
 const publicScriptOverrides = new Map([["test", "npm run test:public"]]);
 
 const byteStablePublicFiles = new Set([
+  "scripts/build-temporal-native.mjs",
+  "scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock",
+  "scripts/tests/temporal-native-build.test.mjs",
   "scripts/public-export.mjs",
   "scripts/tests/public-export.test.mjs"
 ]);
