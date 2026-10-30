@@ -10,6 +10,8 @@ on:
       - "starter-memory/**"
       - "Dockerfile"
       - "package-lock.json"
+      - "scripts/build-temporal-native.mjs"
+      - "scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock"
   push:
     branches:
       - main
@@ -21,6 +23,8 @@ on:
       - "starter-memory/**"
       - "Dockerfile"
       - "package-lock.json"
+      - "scripts/build-temporal-native.mjs"
+      - "scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock"
   workflow_dispatch:
 
 permissions:
