@@ -71,16 +71,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm ci
-      - name: Rebuild patched Temporal before source tests and scans
-        uses: ./.github/actions/temporal-native
-      - run: npm audit --audit-level=high
-      - name: Install ripgrep (the file search tests run the real rg)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
-
-      - run: npm run test:public
-      - run: npm run public:export:verify
-
       - name: Scan tracked source and introduced commits for secrets
         shell: bash
         run: |
@@ -121,6 +111,16 @@ jobs:
             ${{ runner.temp }}/gitleaks-current.json
             ${{ runner.temp }}/gitleaks-introduced.json
           if-no-files-found: ignore
+
+      - run: npm ci
+      - name: Rebuild patched Temporal before source tests and scans
+        uses: ./.github/actions/temporal-native
+      - run: npm audit --audit-level=high
+      - name: Install ripgrep (the file search tests run the real rg)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+
+      - run: npm run test:public
+      - run: npm run public:export:verify
 
       - name: Block fixable Medium, High, and Critical filesystem findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
