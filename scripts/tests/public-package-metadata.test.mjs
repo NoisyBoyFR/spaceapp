@@ -221,10 +221,10 @@ test("MCP Node transport is forced to the reviewed Hono security release", async
     await readFile(join(root, "package-lock.json"), "utf8")
   );
 
-  assert.equal(rootPackage.overrides?.["@hono/node-server"], "2.0.12");
+  assert.equal(rootPackage.overrides?.["@hono/node-server"], "2.1.5");
   assert.equal(
     lockfile.packages["node_modules/@hono/node-server"].version,
-    "2.0.12"
+    "2.1.5"
   );
 });
 
