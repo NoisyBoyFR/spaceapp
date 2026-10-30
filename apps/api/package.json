@@ -33,7 +33,7 @@
     "@space/runtime": "0.2.5",
     "@space/streaming": "0.2.5",
     "@t3-oss/env-core": "^0.13.11",
-    "@temporalio/client": "1.24.0",
+    "@temporalio/client": "1.25.0",
     "@xmldom/xmldom": "^0.8.15",
     "@xterm/headless": "^5.5.0",
     "fastify": "5.12.7",

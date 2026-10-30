@@ -179,7 +179,7 @@ test("Temporal dependencies use SDK releases with patched transitive packages", 
   );
   const workerRequire = createRequire(join(root, "apps", "worker", "package.json"));
   const cargoLock = await readFile(join(dirname(workerRequire.resolve("@temporalio/core-bridge/package.json")), "Cargo.lock"), "utf8");
-  const expectedVersion = "1.24.0";
+  const expectedVersion = "1.25.0";
 
   assert.equal(apiPackage.dependencies["@temporalio/client"], expectedVersion);
   for (const name of [
@@ -189,6 +189,9 @@ test("Temporal dependencies use SDK releases with patched transitive packages", 
     "@temporalio/workflow"
   ]) {
     assert.equal(workerPackage.dependencies[name], expectedVersion);
+  }
+  for (const name of ["@temporalio/proto", "@temporalio/testing"]) {
+    assert.equal(workerPackage.devDependencies[name], expectedVersion);
   }
   const lockedTemporalPackages = Object.entries(lockfile.packages)
     .filter(([path]) => /node_modules\/@temporalio\/[^/]+$/.test(path));
@@ -212,6 +215,10 @@ test("Temporal dependencies use SDK releases with patched transitive packages", 
   assert.deepEqual(crateVersions("opentelemetry_sdk"), ["0.32.1"]);
   assert.deepEqual(crateVersions("rand"), ["0.10.1", "0.9.3"]);
   assert.deepEqual(crateVersions("tar"), ["0.4.46"]);
+  assert.deepEqual(crateVersions("zip"), ["9.0.5"]);
+  // Upstream 1.25.0 still ships this vulnerable crate; the scoped, expiring
+  // exception below is justified by the application's unreachable code path.
+  assert.deepEqual(crateVersions("rustls"), ["0.23.36"]);
   assert.deepEqual(crateVersions("quinn-proto"), [], "Reviewed SDK removes the vulnerable HTTP/3 implementation");
 });
 
@@ -238,6 +245,7 @@ test("temporary vulnerability ignores are narrow, documented, and expiring", asy
   assert.deepEqual(activeEntries, [
     "GHSA-4w2j-m93h-cj5j exp:2026-10-25",
     "GHSA-2mjx-qc3c-rqvc exp:2026-11-10",
+    "GHSA-c8m5-c952-6cm4 exp:2026-11-06",
     "CVE-2026-39244 exp:2026-10-25",
     "CVE-2026-55388 exp:2026-10-25",
     "CVE-2026-41907 exp:2026-10-25",
@@ -249,6 +257,35 @@ test("temporary vulnerability ignores are narrow, documented, and expiring", asy
   assert.match(ignoreFile, /cursor-agent/i);
   assert.match(ignoreFile, /trustProxy/i);
   assert.match(ignoreFile, /without TLS/i);
+  assert.match(ignoreFile, /https:\/\/github\.com\/rustls\/rustls\/security\/advisories\/GHSA-c8m5-c952-6cm4/);
+  assert.match(ignoreFile, /ClientSessionStore/);
+  assert.match(ignoreFile, /Debug/);
+  assert.match(ignoreFile, /NOT patched/);
+});
+
+test("the temporary rustls session-debug exception stays unreachable in the application", async () => {
+  for (const name of ["worker.ts", "memory-maintenance-worker.ts", "memory-mutation-worker.ts"]) {
+    const source = await readFile(join(root, "apps", "worker", "src", name), "utf8");
+    const connections = [...source.matchAll(/NativeConnection\.connect\(([^)]*)\)/g)]
+      .map(([, options]) => options.replace(/\s/g, ""));
+    assert.deepEqual(connections, ["{address}"], `${name}: reassess the exception before changing Temporal TLS options`);
+  }
+  const compose = await readFile(join(root, "packages", "run-spaceapp", "templates", "compose.yml"), "utf8");
+  assert.match(compose, /SPACE_TEMPORAL_ADDRESS: temporal:7233/);
+  const workerSource = await readFile(join(root, "apps", "worker", "src", "worker.ts"), "utf8");
+  assert.match(workerSource, /Runtime\.install\(\{ telemetryOptions: \{ metrics: \{ prometheus:/);
+  assert.doesNotMatch(workerSource, /telemetryOptions:[\s\S]*?otlp:/);
+
+  const workerRequire = createRequire(join(root, "apps", "worker", "package.json"));
+  const bridgeRoot = dirname(workerRequire.resolve("@temporalio/core-bridge/package.json"));
+  for (const path of [
+    ["sdk-core", "crates", "client", "src", "lib.rs"],
+    ["sdk-core", "crates", "common", "src", "telemetry", "otel.rs"]
+  ]) {
+    const source = await readFile(join(bridgeRoot, ...path), "utf8");
+    assert.doesNotMatch(source, /ClientSessionStore|Tls12ClientSessionValue|Tls13ClientSessionValue/,
+      "Reassess the exception if the reviewed SDK adds custom session storage or session-value logging");
+  }
 });
 
 test("public policy files are present and point security reports to a private channel", async () => {
