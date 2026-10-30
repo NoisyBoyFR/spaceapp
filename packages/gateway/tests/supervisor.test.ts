@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 const supervisorSource = join(import.meta.dirname, "..", "src", "supervisor.ts");
@@ -49,10 +50,20 @@ describe("gateway supervisor", () => {
     writeFileSync(logFile, "");
     writeFileSync(workerFile, workerSource("v1"));
     const runner = join(directory, "runner.mts");
-    writeFileSync(runner, `import { startSupervisor } from ${JSON.stringify(supervisorSource)};\nstartSupervisor({ workerFile: ${JSON.stringify(workerFile)}, startTimeoutMs: 5000, restartDelayMs: 100, log: (line) => console.log(line) });\n`);
+    writeFileSync(runner, `import { startSupervisor } from ${JSON.stringify(pathToFileURL(supervisorSource).href)};
+startSupervisor({ workerFile: ${JSON.stringify(workerFile)}, startTimeoutMs: 5000, restartDelayMs: 100, log: (line) => console.log(line) });
+// Windows cannot deliver these POSIX signals. Exercise the same registered
+// handlers through IPC while keeping the supervisor and workers as real processes.
+if (process.platform === "win32") process.on("message", (message) => {
+  if (message?.type === "test:signal" && ["SIGHUP", "SIGTERM"].includes(message.signal)) process.emit(message.signal);
+});
+`);
     const port = await freePort();
-    const child = spawn(process.execPath, [runner], { env: { ...process.env, TEST_PORT: String(port), TEST_LOG: logFile }, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [runner], { env: { ...process.env, TEST_PORT: String(port), TEST_LOG: logFile }, stdio: ["ignore", "pipe", "pipe", "ipc"] });
     children.push(child);
+    const signal = (name: "SIGHUP" | "SIGTERM") => process.platform === "win32"
+      ? child.send({ type: "test:signal", signal: name })
+      : child.kill(name);
     const get = async (path = "/") => (await fetch(`http://127.0.0.1:${port}${path}`)).text();
 
     const first = await until(async () => { const body = await get(); return body.startsWith("v1:") ? body : null; });
@@ -61,7 +72,7 @@ describe("gateway supervisor", () => {
     const slow = get("/slow");
     writeFileSync(workerFile, workerSource("v2"));
     await new Promise((resolve) => setTimeout(resolve, 100));
-    child.kill("SIGHUP");
+    signal("SIGHUP");
     const second = await until(async () => { const body = await get(); return body.startsWith("v2:") ? body : null; });
     expect(second).not.toBe(first);
     expect(await slow).toBe(`slow-done:${first.split(":")[1]}`);
@@ -69,12 +80,12 @@ describe("gateway supervisor", () => {
 
     // A worker that cannot start is dropped; v2 keeps answering.
     writeFileSync(workerFile, "process.exit(3);\n");
-    child.kill("SIGHUP");
+    signal("SIGHUP");
     await new Promise((resolve) => setTimeout(resolve, 800));
     expect(await get()).toBe(second);
 
     const exited = new Promise<number | null>((resolve) => child.once("exit", (code) => resolve(code)));
-    child.kill("SIGTERM");
+    signal("SIGTERM");
     expect(await exited).toBe(0);
     expect(readFileSync(logFile, "utf8")).toContain("drain stop v2");
   }, 30_000);
