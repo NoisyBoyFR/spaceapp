@@ -23,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -30,8 +31,19 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Verify export provenance
-        run: node scripts/verify-export-provenance.mjs .
+      - name: Verify original export provenance and report public contributions
+        shell: bash
+        run: |
+          # The manifest describes the immutable private-to-public export.
+          # Later public contributions are tested in the current checkout below.
+          export_commit=$(git log -1 --format=%H -- PUBLIC_EXPORT_MANIFEST.json)
+          test -n "$export_commit"
+          export_root="$RUNNER_TEMP/spaceapp-original-export"
+          git worktree add --detach "$export_root" "$export_commit"
+          node scripts/verify-export-provenance.mjs "$export_root"
+          git worktree remove "$export_root"
+          echo "Public contributions since export $export_commit:"
+          git diff --stat "$export_commit" HEAD
 
       - name: Create sanitized candidate
         run: >-
