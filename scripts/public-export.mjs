@@ -34,6 +34,7 @@ const repoRoot = resolve(dirname(scriptPath), "..");
 const rootFiles = new Set([
   ".dockerignore",
   ".gitignore",
+  ".gitleaks.toml",
   ".nvmrc",
   ".trivyignore",
   "CHANGELOG.md",

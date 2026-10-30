@@ -77,6 +77,7 @@ test("public export copies only allowlisted source and writes a clean manifest",
   const outputRoot = join(await mkdtemp(join(tmpdir(), "spaceapp-public-output-")), "export");
   const trackedPaths = [
     "README.md",
+    ".gitleaks.toml",
     "AGENTS.md",
     "apps/api/src/example.ts",
     "docs/getting-started.md"
@@ -85,6 +86,7 @@ test("public export copies only allowlisted source and writes a clean manifest",
   await mkdir(join(sourceRoot, "apps", "api", "src"), { recursive: true });
   await mkdir(join(sourceRoot, "docs"), { recursive: true });
   await writeFile(join(sourceRoot, "README.md"), "# SpaceApp\n");
+  await writeFile(join(sourceRoot, ".gitleaks.toml"), "[extend]\nuseDefault = true\n");
   await writeFile(join(sourceRoot, "AGENTS.md"), "private operator policy\n");
   await writeFile(
     join(sourceRoot, "apps", "api", "src", "example.ts"),
@@ -101,6 +103,7 @@ test("public export copies only allowlisted source and writes a clean manifest",
 
   assert.equal(result.manifest.sourceCommit, "0123456789abcdef0123456789abcdef01234567");
   assert.equal(result.manifest.transformations, 1);
+  assert.equal(await readFile(join(outputRoot, ".gitleaks.toml"), "utf8"), "[extend]\nuseDefault = true\n");
   assert.equal(
     await readFile(join(outputRoot, "apps", "api", "src", "example.ts"), "utf8"),
     'export const host = "public-host";\n'
@@ -147,6 +150,7 @@ test("public path policy exports application tests except the reviewed private-o
   assert.equal(isPublicExportPath("SUPPORT.md"), true);
   for (const path of [
     ".trivyignore",
+    ".gitleaks.toml",
     "scripts/container-image-size-budget.mjs",
     "scripts/release-version.mjs",
     "scripts/tests/portable-backup-restore.test.mjs",
