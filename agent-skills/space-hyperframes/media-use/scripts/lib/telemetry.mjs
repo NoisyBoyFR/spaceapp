@@ -9,7 +9,8 @@ import { dirname, join } from "node:path";
 import { withFileLock } from "./config-lock.mjs";
 import { globalMediaDir } from "./media-home.mjs";
 
-const POSTHOG_API_KEY = "phc_zjjbX0PnWxERXrMHhkEJWj9A9BhGVLRReICgsfTMmpx";
+// Public ingestion identifier distributed with the client.
+const POSTHOG_PROJECT = "phc_zjjbX0PnWxERXrMHhkEJWj9A9BhGVLRReICgsfTMmpx";
 const POSTHOG_HOST = "https://us.i.posthog.com";
 const TIMEOUT_MS = 1500;
 let identifiedAccount = false;
@@ -163,7 +164,7 @@ async function postBatch(batch) {
     await fetch(`${posthogHost()}/batch/`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Connection: "close" },
-      body: JSON.stringify({ api_key: POSTHOG_API_KEY, batch }),
+      body: JSON.stringify({ api_key: POSTHOG_PROJECT, batch }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch {

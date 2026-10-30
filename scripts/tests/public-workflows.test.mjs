@@ -89,7 +89,14 @@ test("security workflow scans secrets, dependencies, source, images, and emits a
     /image:[\s\S]*needs: container-changes[\s\S]*if: needs\.container-changes\.outputs\.required == 'true'/
   );
   assert.match(security, /npm audit --audit-level=high/);
-  assert.match(security, /gitleaks\/gitleaks-action/);
+  assert.match(security, /git archive HEAD \| tar/);
+  assert.match(security, /"\$scanner\/gitleaks" dir/);
+  assert.match(security, /"\$scanner\/gitleaks" git/);
+  assert.match(security, /--log-opts="\$import_commit\.\.HEAD -m"/);
+  assert.match(security, /--ignore-gitleaks-allow/);
+  const secretRules = (await readFile(join(root, ".gitleaks.toml"), "utf8"))
+    .split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
+  assert.deepEqual(secretRules, ["[extend]", "useDefault = true"]);
   assert.match(security, /aquasecurity\/trivy-action/);
   assert.deepEqual(
     [...security.matchAll(/uses:\s+aquasecurity\/trivy-action@([^\s]+)/g)]

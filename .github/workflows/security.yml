@@ -81,10 +81,46 @@ jobs:
       - run: npm run test:public
       - run: npm run public:export:verify
 
-      - name: Secret scan
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Scan tracked source and introduced commits for secrets
+        shell: bash
+        run: |
+          scanner="$RUNNER_TEMP/gitleaks-8.30.1"
+          mkdir -p "$scanner"
+          curl --fail --location --retry 3 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            -o "$scanner/archive.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $scanner/archive.tar.gz" | sha256sum --check -
+          tar -xzf "$scanner/archive.tar.gz" -C "$scanner"
+          touch "$scanner/empty-ignore"
+
+          # Scan every tracked source file, including the imported source.
+          snapshot=$(mktemp -d "$RUNNER_TEMP/spaceapp-secret-tree.XXXXXX")
+          git archive HEAD | tar -x -C "$snapshot"
+          "$scanner/gitleaks" dir --config .gitleaks.toml --redact=100 \
+            --ignore-gitleaks-allow --gitleaks-ignore-path "$scanner/empty-ignore" \
+            --report-path "$RUNNER_TEMP/gitleaks-current.json" "$snapshot"
+
+          # Also catch secrets introduced then removed in this repository's
+          # commits. Its initial public import has separate verified provenance;
+          # unrelated remote histories are not part of the candidate.
+          imports=$(git log --reverse --format=%H --diff-filter=A -- PUBLIC_EXPORT_MANIFEST.json)
+          import_commit="${imports%%$'\n'*}"
+          test -n "$import_commit"
+          git merge-base --is-ancestor "$import_commit" HEAD
+          "$scanner/gitleaks" git --config .gitleaks.toml --redact=100 \
+            --ignore-gitleaks-allow --gitleaks-ignore-path "$scanner/empty-ignore" \
+            --log-opts="$import_commit..HEAD -m" \
+            --report-path "$RUNNER_TEMP/gitleaks-introduced.json" .
+
+      - name: Preserve redacted secret scan reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: secret-scan-reports
+          path: |
+            ${{ runner.temp }}/gitleaks-current.json
+            ${{ runner.temp }}/gitleaks-introduced.json
+          if-no-files-found: ignore
 
       - name: Block fixable Medium, High, and Critical filesystem findings
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
