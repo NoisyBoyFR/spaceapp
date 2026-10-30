@@ -6,9 +6,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential liblzma5 python3 pkg-config \
     && rm -rf /var/lib/apt/lists/*
 COPY . .
+# The SDK ships prebuilds for every OS and architecture. Keep the active target
+# before copying production dependencies, while retaining sources and metadata.
 RUN npm ci --no-audit --no-fund \
     && npm run build \
     && npm prune --omit=dev \
+    && temporal_root="$(node -p 'require("node:path").dirname(require("node:module").createRequire(require("node:path").resolve("apps/worker/package.json")).resolve("@temporalio/core-bridge"))')" \
+    && temporal_target="$(node -p 'require(require("node:path").join(process.argv[1], "common.js")).getPrebuiltTargetName()' "$temporal_root")" \
+    && find "$temporal_root/releases" -mindepth 1 -maxdepth 1 -type d ! -name "$temporal_target" -exec rm -rf {} + \
+    && node -e 'require(require(require("node:path").join(process.argv[1], "common.js")).getPrebuiltPath()); require("node:module").createRequire(require("node:path").resolve("apps/worker/package.json"))("@temporalio/core-bridge")' "$temporal_root" \
     && find node_modules -type f \( -name '*.js.map' -o -name '*.mjs.map' -o -name '*.cjs.map' -o -name '*.css.map' \) -delete
 
 FROM node:22.23.0-trixie-slim@sha256:cfd8f2a5bc50526aee08e88970979f92722828e7dcc6d8983607fb8bff4bdb82 AS runtime-base
