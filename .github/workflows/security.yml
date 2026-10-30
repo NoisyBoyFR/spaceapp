@@ -48,7 +48,9 @@ jobs:
             deploy/docker \
             starter-memory \
             Dockerfile \
-            package-lock.json; then
+            package-lock.json \
+            scripts/build-temporal-native.mjs \
+            scripts/fixtures/temporal-core-bridge-1.25.0.Cargo.lock; then
             echo "required=false" >> "$GITHUB_OUTPUT"
           else
             echo "required=true" >> "$GITHUB_OUTPUT"
