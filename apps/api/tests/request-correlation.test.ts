@@ -8,7 +8,7 @@ it("uses one server-owned identifier for request logs, error responses and audit
   const app = await createApp({
     store: new InMemorySpaceStore(),
     config: getApiConfig({ SPACE_STORE_MODE: "memory" }),
-    auth: { sessionSecret: "correlation-fixture-secret-123456", devLogin: false, secureCookies: false }
+    auth: { sessionSecret: "test-session-0000000000000000000000000000", devLogin: false, secureCookies: false }
   });
   const observed: Array<{ id: string; traceId: string; logId: unknown }> = [];
   app.addHook("onResponse", async request => {

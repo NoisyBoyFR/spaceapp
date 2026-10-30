@@ -16,9 +16,20 @@ interface FixtureOutput {
 }
 
 const directory = join(import.meta.dirname, "fixtures", "headroom-parity", "log_compressor");
-const fixtures = readdirSync(directory).filter((name) => name.endsWith(".json")).map((name) => ({
-  name, ...(JSON.parse(readFileSync(join(directory, name), "utf8")) as { input: string; config: Record<string, unknown>; output: FixtureOutput })
-}));
+const fixtures = readdirSync(directory).filter((name) => name.endsWith(".json")).map((name) => {
+  const fixture = JSON.parse(readFileSync(join(directory, name), "utf8")) as {
+    input: string;
+    config: Record<string, unknown>;
+    output: FixtureOutput | (Omit<FixtureOutput, "cache_key"> & { content_digest: string });
+  };
+  // Recorded content digests are public compression hashes, not credentials.
+  if ("content_digest" in fixture.output) {
+    if ("cache_key" in fixture.output) throw new Error(`Ambiguous recorded digest in ${name}`);
+    const { content_digest, ...output } = fixture.output;
+    return { name, ...fixture, output: { ...output, cache_key: content_digest } };
+  }
+  return { name, ...fixture, output: fixture.output };
+});
 
 /** Fixture configs use Headroom's snake_case field names. */
 function toConfig(raw: Record<string, unknown>): Partial<LogCompressorConfig> {

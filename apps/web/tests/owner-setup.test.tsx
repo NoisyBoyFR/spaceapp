@@ -254,10 +254,10 @@ describe("first-owner setup", { timeout: 60_000 }, () => {
       target: { value: "owner@example.com" }
     });
     fireEvent.change(screen.getByLabelText("New password"), {
-      target: { value: "abc123ABCxyz" }
+      target: { value: "TestTest0000!" }
     });
     fireEvent.change(screen.getByLabelText("Confirm password"), {
-      target: { value: "abc123ABCxyz" }
+      target: { value: "TestTest0000!" }
     });
     fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
 
@@ -265,7 +265,7 @@ describe("first-owner setup", { timeout: 60_000 }, () => {
       expect(onClaim).toHaveBeenCalledWith({
         token: "setup-token-value-with-at-least-thirty-two-characters",
         email: "owner@example.com",
-        password: "abc123ABCxyz"
+        password: "TestTest0000!"
       });
     });
   });

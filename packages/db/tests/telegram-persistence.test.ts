@@ -120,7 +120,7 @@ describe("Postgres Telegram persistence", () => {
     const client = new RecordingClient((sql) => {
       if (sql.includes("FROM telegram_integrations")) return [integrationRow()];
       if (sql.includes("UPDATE telegram_pairing_sessions") && sql.includes("RETURNING secret_version")) {
-        return [{ secretVersion: "telegram_12345678_cancelled" }];
+        return [{ secretVersion: "telegram_00000000_cancelled" }];
       }
       if (sql.includes("INSERT INTO telegram_pairing_sessions")) return [pairingRow()];
       return [];
@@ -139,7 +139,7 @@ describe("Postgres Telegram persistence", () => {
     });
 
     expect(started.pairing).toMatchObject({ pairingId: "telegram_pairing:testing123", status: "PENDING" });
-    expect(started.cancelledSecretVersions).toEqual(["telegram_12345678_cancelled"]);
+    expect(started.cancelledSecretVersions).toEqual(["telegram_00000000_cancelled"]);
     expect(client.calls.map((call) => call.sql.trim())).toContain("BEGIN");
     expect(client.calls.map((call) => call.sql.trim())).toContain("COMMIT");
     expect(client.calls.some((call) => call.sql.includes("FOR UPDATE"))).toBe(true);
@@ -152,7 +152,7 @@ describe("Postgres Telegram persistence", () => {
         return [integrationRow({
           connectionStatus: "CONNECTED",
           isEnabled: true,
-          secretVersion: "telegram_12345678_previous",
+          secretVersion: "telegram_00000000_previous",
           chatId: "998877",
           botUsername: "old_bot"
         })];
@@ -187,7 +187,7 @@ describe("Postgres Telegram persistence", () => {
       now
     });
 
-    expect(activated.previousSecretVersion).toBe("telegram_12345678_previous");
+    expect(activated.previousSecretVersion).toBe("telegram_00000000_previous");
     expect(activated.integration).toMatchObject({ generation: 4, isEnabled: true, legacySuppressionActive: true });
     expect(client.calls.some((call) => call.sql.includes("telegram_notification_outbox") && call.sql.includes("CANCELLED"))).toBe(true);
     expect(client.calls.some((call) => call.sql.includes("generation = generation + 1"))).toBe(true);

@@ -58,7 +58,7 @@ CONTRIBUTING και credential-free smoke:2 synthetic arithmetic tasks μέσω 
 
 - Νεότερο πλήρες frontend:2438PASS/39FAIL/0pending,source7586cffb54,exit1. Αποτυχίες:agent-pane,checkbox-switch-inventory,modern-theme-css,responsive-shell,smoke,terminal-pane. Ακριβή ονόματα στο `web-pause-failures.json`. Δεν δηλώνεται καθαρό frontend.
 - Νεότερο API run6f11f701c4:διακοπήSIGINT,exit130. Ταυτοποιημένος runner3834895 και παρατηρημένοι απόγονοι τερματίστηκαν. Καμία γενική εντολή kill.
-- Προηγούμενο ολοκληρωμένο API00d7ad3777:2170PASS/8SKIP/0FAIL σε1386,44s·ιστορικό μετά το νέο extraction.
+- Προηγούμενο ολοκληρωμένο API (run 00d7ad3777): 2170 PASS / 8 SKIP / 0 FAIL σε 1386,44 s·ιστορικό μετά το νέο extraction.
 - Προηγούμενο frontendbc46e4d6f4:2430PASS/45FAIL. Scoped PASS δεν αντικαθιστούν πλήρη αποτελέσματα.
 - Δεν δημιουργήθηκε live Agent Proof room,δεν έγινε deploy/restart/public release/client build. Δεν ξεκίνησε νέο test run κατά την παύση.
 

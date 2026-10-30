@@ -6,7 +6,7 @@ import { signSession, signSessionWithTtl } from "../src/auth.js";
 
 // App shutdown waits for background collectors; shared-host deploys can delay teardown.
 const authFixtureTimeoutMs = 30_000;
-const sessionSecret = "test-secret-with-enough-length-123456";
+const sessionSecret = "test-session-0000000000000000000000000000";
 
 describe("Google OAuth & Anonymous Auth Security", () => {
   it("never elevates anonymous requests to user:operator in /api/auth/me", async () => {

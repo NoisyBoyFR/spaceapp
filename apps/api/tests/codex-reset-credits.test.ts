@@ -11,7 +11,7 @@ import { createGatewayCodexResetCreditsService } from "../src/gateway/gateway-co
 const sessionSecret = "codex-reset-credits-test-secret";
 const csrfHeaderName = "x-space-csrf-token";
 const checkedAt = "2026-07-24T08:00:00.000Z";
-const idempotencyKey = "9943e22b-97a3-48b6-ae84-1a2cced6a353";
+const idempotencyKey = "00000000-0000-4000-8000-000000000042";
 const apps: FastifyInstance[] = [];
 
 function authHeaders(role: "OPERATOR" | "ADMIN") {

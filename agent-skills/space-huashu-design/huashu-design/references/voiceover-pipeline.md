@@ -372,9 +372,10 @@ NarrationStage 自动检测 `window.__recording`：
 > endpoint 强制校验字节官方域名白名单。数据流向声明见仓库根 `SECURITY.md`。
 
 skill 根目录下 `.env`（已 gitignore）：
+以下 `replace-me` 仅为示例；调用前替换为控制台提供的真实凭据，不要提交真实值。
 
 ```
-DOUBAO_TTS_API_KEY=<your_api_key>
+DOUBAO_TTS_API_KEY=replace-me
 DOUBAO_TTS_VOICE_ID=zh_female_xiaohe_uranus_bigtts
 DOUBAO_TTS_ENDPOINT=https://openspeech.bytedance.com/api/v3/tts/unidirectional
 ```
@@ -382,8 +383,8 @@ DOUBAO_TTS_ENDPOINT=https://openspeech.bytedance.com/api/v3/tts/unidirectional
 也可使用控制台的 App ID + Access Token 鉴权：
 
 ```
-DOUBAO_APP_ID=<your_app_id>
-DOUBAO_ACCESS_KEY=<your_access_token>
+DOUBAO_APP_ID=replace-me
+DOUBAO_ACCESS_KEY=replace-me
 DOUBAO_TTS_VOICE_ID=zh_female_xiaohe_uranus_bigtts
 ```
 

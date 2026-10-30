@@ -96,7 +96,7 @@ describe("admin operation contracts", () => {
     })).toThrow();
 
     expect(cliMaintenanceAuthHandoffSchema.parse({
-      id: "cli_auth_handoff:Abcd_1234-xy",
+      id: "cli_auth_handoff:0000000000000",
       runId: "admin_run:Repair_123-x",
       runtimeId: "cli:gemini",
       roomId: "room:Recovery_123",

@@ -23,13 +23,20 @@ interface Fixture {
   transform: string;
   input: string;
   config: Partial<DiffCompressorConfig>;
-  output: DiffCompressionResult;
+  output: DiffCompressionResult | (Omit<DiffCompressionResult, "cache_key"> & { content_digest: string });
 }
 
 const directory = join(import.meta.dirname, "fixtures", "headroom-parity", "diff_compressor");
-const fixtures = readdirSync(directory).filter((name) => name.endsWith(".json")).sort().map((name) => ({
-  name, ...(JSON.parse(readFileSync(join(directory, name), "utf8")) as Fixture)
-}));
+const fixtures = readdirSync(directory).filter((name) => name.endsWith(".json")).sort().map((name) => {
+  const fixture = JSON.parse(readFileSync(join(directory, name), "utf8")) as Fixture;
+  // Recorded content digests are public compression hashes, not credentials.
+  if ("content_digest" in fixture.output) {
+    if ("cache_key" in fixture.output) throw new Error(`Ambiguous recorded digest in ${name}`);
+    const { content_digest, ...output } = fixture.output;
+    return { name, ...fixture, output: { ...output, cache_key: content_digest } };
+  }
+  return { name, ...fixture, output: fixture.output };
+});
 
 describe("diff compressor (Headroom 0.37 parity fixtures)", () => {
   it("has the upstream fixtures", () => {

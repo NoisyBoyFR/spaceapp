@@ -63,7 +63,7 @@ describe("toolbar system action contracts", () => {
   });
 
   it("requires one UUID idempotency key and exposes only stable redemption outcomes", () => {
-    const idempotencyKey = "9943e22b-97a3-48b6-ae84-1a2cced6a353";
+    const idempotencyKey = "00000000-0000-4000-8000-000000000042";
     expect(codexResetCreditRedemptionInputSchema.parse({ idempotencyKey })).toEqual({ idempotencyKey });
     expect(() => codexResetCreditRedemptionInputSchema.parse({ idempotencyKey: "retry-1" })).toThrow();
     expect(() => codexResetCreditRedemptionInputSchema.parse({ idempotencyKey, creditId: "raw-credit" })).toThrow();
@@ -312,7 +312,7 @@ describe("toolbar system action contracts", () => {
 
     const preview = codexHistoryPurgePreviewResponseSchema.parse({
       status: "READY",
-      previewId: "9943e22b-97a3-48b6-ae84-1a2cced6a353",
+      previewId: "00000000-0000-4000-8000-000000000042",
       candidates: {
         threads: 12,
         cliTasks: 7,
@@ -336,7 +336,7 @@ describe("toolbar system action contracts", () => {
   });
 
   it("requires typed confirmation and returns bounded purge counts", () => {
-    const previewId = "9943e22b-97a3-48b6-ae84-1a2cced6a353";
+    const previewId = "00000000-0000-4000-8000-000000000042";
     expect(codexHistoryPurgeExecuteRequestSchema.parse({
       previewId,
       confirmation: "PURGE HISTORY"

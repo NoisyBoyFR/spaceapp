@@ -8,7 +8,7 @@ describe("DemoStore setup contract", () => {
     await expect(store.api.claimSetup({
       token: "demo-setup-token-with-at-least-thirty-two-characters",
       email: "owner@example.com",
-      password: "abc123ABCxyz"
+      password: "TestTest0000!"
     })).resolves.toMatchObject({
       isAuthenticated: true,
       isSetupRequired: false,

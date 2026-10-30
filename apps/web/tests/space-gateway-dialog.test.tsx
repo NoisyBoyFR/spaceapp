@@ -48,7 +48,7 @@ const log: GatewayRequestLog = {
   id: "41", requestId: "req_abc", requestedAt: "2026-10-11T09:59:00.000Z", provider: "CODEX", accountId: account.id, apiKeyId: key.id, model: "gpt-5.5",
   reasoningEffort: "high", serviceTier: "priority", transport: "http", status: "error", errorCode: "rate_limit_exceeded", latencyMs: 812, firstTokenMs: 210,
   inputTokens: 1200, cachedInputTokens: 300, outputTokens: 40, reasoningTokens: null, costUsd: 0.0123, compressionTokensSaved: null, stickyKind: "STICKY_THREAD",
-  stickyKeyHash: "abcdef0123456789", planType: "plus", requestedServiceTier: "fast", upstreamTransport: "http", errorMessage: "Slow down", stickyKeySource: "prompt_cache_key",
+  stickyKeyHash: "0000000000000000", planType: "plus", requestedServiceTier: "fast", upstreamTransport: "http", errorMessage: "Slow down", stickyKeySource: "prompt_cache_key",
   cacheCreationTokens: null, clientName: "Codex CLI", project: "space", compressionTokensBefore: 900, compressionTokensAfter: 400, source: null,
   cacheBust: null, compressionDetail: { strategies: ["smart_crusher"], waste: { json_bloat: 700 } }
 };

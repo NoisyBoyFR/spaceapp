@@ -226,7 +226,7 @@ describe("Space deterministic demo store", () => {
 
   it("simulates two reset credits locally with deterministic idempotency", async () => {
     const store = new DemoStore();
-    const idempotencyKey = "9943e22b-97a3-48b6-ae84-1a2cced6a353";
+    const idempotencyKey = "00000000-0000-4000-8000-000000000042";
 
     const before = await store.api.toolbarResetCredits();
     const first = await store.api.redeemToolbarResetCredit("account:demo-public", idempotencyKey);

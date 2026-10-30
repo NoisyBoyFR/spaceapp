@@ -3,7 +3,7 @@ import { InMemorySpaceStore } from "@space/runtime";
 import { createApp } from "../src/app.js";
 import { createCsrfToken, signSession } from "../src/auth.js";
 
-const sessionSecret = "test-secret-with-enough-length-123456";
+const sessionSecret = "test-session-0000000000000000000000000000";
 const csrfHeaderName = "x-space-csrf-token";
 
 describe("Google Auth auto-claim and operator sync", () => {
