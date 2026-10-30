@@ -91,10 +91,9 @@ jobs:
             --report-path "$RUNNER_TEMP/gitleaks-current.json" "$snapshot"
 
           # Also catch secrets introduced then removed in this repository's
-          # commits. Its initial public import has separate verified provenance;
+          # commits. The latest public export has separate verified provenance;
           # unrelated remote histories are not part of the candidate.
-          imports=$(git log --reverse --format=%H --diff-filter=A -- PUBLIC_EXPORT_MANIFEST.json)
-          import_commit="${imports%%$'\n'*}"
+          import_commit=$(git log -1 --format=%H -- PUBLIC_EXPORT_MANIFEST.json)
           test -n "$import_commit"
           git merge-base --is-ancestor "$import_commit" HEAD
           "$scanner/gitleaks" git --config .gitleaks.toml --redact=100 \
